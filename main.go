@@ -2,11 +2,11 @@ package main
 
 import (
 	"bufio"
-	"net"
-	"runtime/debug"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"runtime/debug"
 )
 
 func main() {
@@ -17,14 +17,14 @@ func main() {
 	log.Fatal(http.ListenAndServe(":3000", recoverMw(mux, true)))
 }
 
-func recoverMw(app http.Handler, dev bool) http.HandlerFunc{
-	return func (w http.ResponseWriter, r *http.Request) {
+func recoverMw(app http.Handler, dev bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
 				log.Println(err)
 				stack := debug.Stack()
 				log.Println(string(stack))
-				if !dev{
+				if !dev {
 					http.Error(w, "something went wrong :(", http.StatusInternalServerError)
 					return
 				}
@@ -38,30 +38,24 @@ func recoverMw(app http.Handler, dev bool) http.HandlerFunc{
 	}
 }
 
-// type ResponseWriter interface{
-// 	Header() Header
-// 	Write([]byte)(int, error)
-// 	WriteHeader(statusCode int)
-// }
-
-type responseWriter struct{
+type responseWriter struct {
 	http.ResponseWriter
 	writes [][]byte
 	status int
 }
 
-func(rw *responseWriter) Write(b []byte) (int, error){
+func (rw *responseWriter) Write(b []byte) (int, error) {
 	rw.writes = append(rw.writes, b)
 	return len(b), nil
 }
 
-func(rw *responseWriter) WriteHeader(statusCode int){
+func (rw *responseWriter) WriteHeader(statusCode int) {
 	rw.status = statusCode
 }
 
-func(rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	hijacker, ok := rw.ResponseWriter.(http.Hijacker)
-	if !ok{
+	if !ok {
 		return nil, nil, fmt.Errorf("the response writer does not support the hijacker interface")
 	}
 	return hijacker.Hijack()
@@ -75,13 +69,13 @@ func (rw *responseWriter) Flush() {
 	flusher.Flush()
 }
 
-func (rw *responseWriter) flush() error{
-	if rw.status != 0{
+func (rw *responseWriter) flush() error {
+	if rw.status != 0 {
 		rw.ResponseWriter.WriteHeader(rw.status)
 	}
-	for _, write := range rw.writes{
+	for _, write := range rw.writes {
 		_, err := rw.ResponseWriter.Write(write)
-		if err != nil{
+		if err != nil {
 			return err
 		}
 	}
